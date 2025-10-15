@@ -30,6 +30,8 @@ jobs:
 
       - name: Sync main branch
         run: |
+          git config user.email "sync-bot@github-actions.com" 
+          git config user.name "GitHub Sync Bot"
           LOCAL_BRANCH="main" # 替换为你 Fork 仓库的主分支名称 (例如: master)
           UPSTREAM_BRANCH="main" # 替换为上游仓库的主分支名称 (例如: master)
 
