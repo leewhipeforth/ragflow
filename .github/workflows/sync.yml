@@ -1,0 +1,50 @@
+name: Auto Sync Fork (Schedule)
+
+on:
+  # 1. 设置定时任务 (Cron)
+  # 示例: 每天凌晨 00:00 UTC 运行
+  schedule:
+    - cron: '0 * * * *'
+
+  # 2. 允许手动运行 (在 Actions 页面点击按钮触发)
+  workflow_dispatch:
+
+jobs:
+  sync_with_upstream:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout target repository
+        uses: actions/checkout@v4
+        with:
+          # 使用我们在步骤二中创建的 PAT Secret
+          token: ${{ secrets.PAT_TOKEN }}
+          fetch-depth: 0 # 确保获取完整历史记录
+
+      - name: Set Upstream
+        run: |
+          # 替换为 上游(原始)仓库 的 HTTPS URL
+          UPSTREAM_URL="https://github.com/infiniflow/ragflow.git"
+
+          git remote add upstream $UPSTREAM_URL || true
+          git fetch upstream
+
+      - name: Sync main branch
+        run: |
+          LOCAL_BRANCH="main" # 替换为你 Fork 仓库的主分支名称 (例如: master)
+          UPSTREAM_BRANCH="main" # 替换为上游仓库的主分支名称 (例如: master)
+
+          echo "Rebasing $LOCAL_BRANCH onto upstream/$UPSTREAM_BRANCH..."
+
+          # 切换到本地分支
+          git checkout $LOCAL_BRANCH
+
+          # 执行 Rebase 操作，将上游的更改合并进来
+          # 推荐使用 rebase，因为它保持了干净的线性历史
+          git rebase upstream/$UPSTREAM_BRANCH
+
+      - name: Push changes to fork
+        run: |
+          LOCAL_BRANCH="main" # 再次确认本地分支名称
+
+          # 因为 Rebase 改变了 Git 历史，所以必须使用 --force 推送
+          git push origin $LOCAL_BRANCH --force
