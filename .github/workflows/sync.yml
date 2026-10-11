@@ -1,0 +1,44 @@
+name: Auto Sync Fork (Force Reset)
+
+on:
+  schedule:
+    - cron: '0 * * * *' # 每小时运行一次
+  workflow_dispatch:
+
+jobs:
+  sync_with_upstream:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout target repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.PAT_TOKEN }}
+          fetch-depth: 0 
+
+      - name: Sync logic
+        run: |
+          # 1. 配置身份信息
+          git config user.email "sync-bot@github-actions.com"
+          git config user.name "GitHub Sync Bot"
+
+          # 2. 添加上游仓库
+          UPSTREAM_URL="https://github.com/infiniflow/ragflow.git"
+          git remote add upstream $UPSTREAM_URL || true
+          git fetch upstream main
+
+          # 3. 强制重置：把本地 main 分支重置到和上游一模一样
+          # 这一步会抹掉本地所有不同于上游的提交（包括你的 sync.yml 会在磁盘上消失）
+          git checkout main
+          git reset --hard upstream/main
+
+          # 4. 关键：找回 sync.yml 文件
+          # 我们从执行 Action 之前的状态（HEAD@{1}）中恢复 .github 文件夹
+          # 这样既能保持代码是原厂的，又能留下我们的同步脚本
+          git checkout HEAD@{1} -- .github/workflows/sync.yml
+          
+          # 5. 提交这个同步脚本的变化（如果有的话）
+          git add .github/workflows/sync.yml
+          git commit -m "chore: keep sync workflow after upstream reset" || echo "No changes to commit"
+
+          # 6. 强制推送到你的 GitHub 仓库
+          git push origin main --force
